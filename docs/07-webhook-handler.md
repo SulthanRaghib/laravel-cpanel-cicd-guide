@@ -1,6 +1,4 @@
-# 07 - Webhook Handler
-
-## Buat Webhook Handler
+# 07 - Buat Webhook Handler
 
 ### 1. Generate Secret Token
 
@@ -31,9 +29,9 @@ nano deploy.php
 <?php
 /**
  * GitHub Webhook Auto Deploy Handler
- * For Laravel on cPanel
+ * For Laravel on cPanel with Disabled Execution Functions
  *
- * Security: Only GitHub IPs can access this endpoint
+ * Uses Flag System + Cron Job for deployment
  * Token authentication required
  */
 
@@ -170,7 +168,7 @@ writeLog('🚀 Starting deployment', [
 ]);
 
 // =========================================
-// DEPLOYMENT
+// DEPLOYMENT VIA FLAG SYSTEM
 // =========================================
 
 // Check deploy script exists
@@ -179,132 +177,50 @@ if (!file_exists(DEPLOY_SCRIPT)) {
     sendResponse('error', 'Deploy script not found', ['path' => DEPLOY_SCRIPT], 500);
 }
 
-// Execute deployment
-$startTime = microtime(true);
-$output = shell_exec(DEPLOY_SCRIPT . ' 2>&1');
-$executionTime = round(microtime(true) - $startTime, 2);
+// Create deployment flag file (since exec/shell_exec disabled)
+$flagFile = PROJECT_PATH . '/deploy.flag';
+$flagData = [
+    'timestamp' => time(),
+    'branch' => $branch,
+    'commit' => $commitInfo,
+    'triggered_at' => date('Y-m-d H:i:s'),
+    'delivery_id' => $delivery
+];
 
-// Check success
-$success = (strpos($output, '✅ Deployment completed successfully!') !== false);
+// Write flag file
+$flagWritten = @file_put_contents($flagFile, json_encode($flagData, JSON_PRETTY_PRINT));
 
-if ($success) {
-    writeLog('✅ Deployment SUCCESS', [
-        'execution_time' => $executionTime . 's',
-        'commit_id' => $commitInfo['id'],
-        'author' => $commitInfo['author']
+if ($flagWritten === false) {
+    writeLog('❌ ERROR: Cannot create deploy flag', [
+        'flag_path' => $flagFile,
+        'directory_writable' => is_writable(PROJECT_PATH)
     ]);
-
-    sendResponse('success', 'Deployment completed successfully!', [
-        'execution_time' => $executionTime . 's',
-        'commit' => $commitInfo,
-        'branch' => $branch,
-        'deployed_at' => date('Y-m-d H:i:s')
-    ]);
-} else {
-    writeLog('⚠️  Deployment completed with warnings', [
-        'execution_time' => $executionTime . 's',
-        'output_preview' => substr($output, -500)
-    ]);
-
-    sendResponse('warning', 'Deployment executed, check logs for details', [
-        'execution_time' => $executionTime . 's'
-    ], 200);
+    sendResponse('error', 'Cannot create deployment flag', null, 500);
 }
+
+writeLog('✅ Deployment flag created', [
+    'flag_file' => $flagFile,
+    'commit' => $commitInfo['id'],
+    'branch' => $branch,
+    'note' => 'Waiting for cron job to execute deployment'
+]);
+
+sendResponse('success', 'Deployment queued successfully!', [
+    'flag_created' => true,
+    'commit' => $commitInfo,
+    'branch' => $branch,
+    'note' => 'Deployment will be executed by cron job within 1 minute',
+    'queued_at' => date('Y-m-d H:i:s')
+]);
+?>
 ```
 
 ⚠️ **PENTING: Edit nilai berikut:**
 
 - `SECRET_TOKEN` - Paste token dari `openssl rand -hex 32`
-- `PROJECT_PATH` - Path ke project Anda
+- `PROJECT_PATH` - Path ke project Anda (contoh: `/home/jasz5267/public_html`)
 - `BRANCH_TO_DEPLOY` - `'main'` atau `'master'`
 
 **Save:** Ctrl+X, Y, Enter
 
-### 4. Test Webhook Handler
-
-```bash
-# Ganti YOUR_TOKEN dengan token Anda
-curl "https://yourdomain.com/deploy.php?token=YOUR_TOKEN" \
-  -H "X-GitHub-Event: push" \
-  -H "Content-Type: application/json" \
-  -d '{"ref":"refs/heads/main","head_commit":{"id":"test","message":"Test","author":{"name":"Test"}}}'
-```
-
-**Expected response:**
-
-```json
-{
-    "status": "success",
-    "message": "Deployment completed successfully!",
-    ...
-}
-```
-
 ---
-
-## Setup GitHub Webhook
-
-### 1. Buka Repository GitHub
-
-Navigate ke repository Anda di GitHub.
-
-### 2. Pergi ke Settings
-
-Klik tab **Settings** di bagian atas repository.
-
-### 3. Pilih Webhooks
-
-Di sidebar kiri, klik **Webhooks** → **Add webhook**
-
-### 4. Konfigurasi Webhook
-
-**Payload URL:**
-
-```
-https://yourdomain.com/deploy.php?token=YOUR_SECRET_TOKEN
-```
-
-⚠️ Ganti `YOUR_SECRET_TOKEN` dengan token dari `openssl rand -hex 32`
-
-**Content type:**
-
-```
-application/json
-```
-
-**Secret:**
-
-```
-(kosongkan)
-```
-
-**SSL verification:**
-
-```
-☑️ Enable SSL verification
-```
-
-**Which events would you like to trigger this webhook?**
-
-```
-☑️ Just the push event
-```
-
-**Active:**
-
-```
-☑️ Active
-```
-
-### 5. Add Webhook
-
-Klik **Add webhook**
-
-### 6. Verify Webhook
-
-GitHub akan otomatis mengirim test ping.
-
-1. Scroll ke bawah ke **Recent Deliveries**
-2. Klik request pertama (ping)
-3. Check **Response** tab
-4. Harus ada response 200 (boleh "skipped" karena bukan push event)
