@@ -1,6 +1,4 @@
-# 06 - Deploy Script
-
-## Buat Deploy Script
+# 06 - Buat Deploy Script
 
 ### 1. Generate Script
 
