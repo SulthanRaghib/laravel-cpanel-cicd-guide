@@ -1,6 +1,4 @@
-# 01 - Prasyarat
-
-## Prerequisites
+# 01 - Prerequisites
 
 Sebelum memulai, pastikan Anda memiliki:
 
@@ -9,3 +7,4 @@ Sebelum memulai, pastikan Anda memiliki:
 - ✅ Database MySQL sudah dibuat di cPanel
 - ✅ Domain/subdomain sudah dikonfigurasi
 - ✅ PHP 8.1 atau lebih tinggi (untuk Laravel 10+)
+- ✅ Akses ke Cron Jobs di cPanel

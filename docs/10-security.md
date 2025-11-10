@@ -1,8 +1,16 @@
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [L]
+# 10 - Security Configuration
 
+### 1. Protect deploy.php dengan IP Whitelist
+
+Edit `.htaccess` di folder `public/`:
+
+```bash
+nano ~/public_html/public/.htaccess
+```
+
+**Tambahkan di PALING ATAS** (sebelum semua rules):
+
+```apache
 # ============================================
 # GitHub Webhook Security
 # ============================================
@@ -19,7 +27,15 @@ RewriteRule ^ index.php [L]
 </Files>
 
 # ============================================
+```
 
+⚠️ **Note:** GitHub IP ranges dapat berubah. Cek update di: https://api.github.com/meta
+
+### 2. Protect Sensitive Files
+
+Tambahkan juga di `.htaccess`:
+
+```apache
 # ============================================
 # Protect Sensitive Files
 # ============================================
@@ -55,3 +71,20 @@ RewriteRule ^ index.php [L]
 </Files>
 
 # ============================================
+```
+
+### 3. Set File Permissions
+
+```bash
+# Deploy scripts
+chmod 700 ~/public_html/deploy.sh
+chmod 700 ~/public_html/cron-deploy.sh
+
+# Webhook handler
+chmod 644 ~/public_html/public/deploy.php
+
+# Log files
+chmod 644 ~/public_html/*.log
+```
+
+---
